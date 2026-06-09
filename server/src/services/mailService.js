@@ -44,6 +44,28 @@ export function getMailConfigStatus() {
   }
 }
 
+export async function verifyMailConnection() {
+  requireMailConfig()
+
+  try {
+    await createTransporter().verify()
+    return { ok: true }
+  } catch (error) {
+    console.error('Email verify failed:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      message: error.message,
+    })
+
+    const mailError = new Error('Email service login failed. Check SMTP host, port, user, and app password on Render.')
+    mailError.statusCode = 502
+    mailError.code = 'MAIL_VERIFY_FAILED'
+    mailError.publicMessage = mailError.message
+    throw mailError
+  }
+}
+
 export async function sendMail({ to, subject, html }) {
   requireMailConfig()
 

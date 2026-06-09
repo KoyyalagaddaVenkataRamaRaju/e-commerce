@@ -12,7 +12,7 @@ import reviewRoutes from './routes/reviewRoutes.js'
 import testimonialRoutes from './routes/testimonialRoutes.js'
 import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 import { env } from './config/env.js'
-import { getMailConfigStatus } from './services/mailService.js'
+import { getMailConfigStatus, verifyMailConnection } from './services/mailService.js'
 
 const app = express()
 
@@ -32,6 +32,21 @@ app.get('/api/health/mail', (_req, res) => {
     service: 'hardware-commerce-mail',
     mail,
   })
+})
+
+app.get('/api/health/mail/verify', async (_req, res, next) => {
+  try {
+    const mail = getMailConfigStatus()
+    await verifyMailConnection()
+    res.json({
+      status: 'ok',
+      service: 'hardware-commerce-mail',
+      message: 'SMTP connection verified',
+      mail,
+    })
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.use('/api/auth', authRoutes)
