@@ -1,0 +1,17 @@
+export const env = {
+  port: process.env.PORT || 5000,
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  mongoUri: process.env.MONGO_URI,
+  jwtSecret: process.env.JWT_SECRET,
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+  mailFrom: process.env.MAIL_FROM || process.env.SMTP_USER,
+  adminName: process.env.ADMIN_NAME || 'Store Admin',
+  adminEmail: process.env.ADMIN_EMAIL || 'admin@varmahardware.local',
+  adminPhone: process.env.ADMIN_PHONE || '9999999999',
+  adminPassword: process.env.ADMIN_PASSWORD || 'Admin@12345',
+}
