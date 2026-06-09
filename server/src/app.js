@@ -12,6 +12,7 @@ import reviewRoutes from './routes/reviewRoutes.js'
 import testimonialRoutes from './routes/testimonialRoutes.js'
 import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 import { env } from './config/env.js'
+import { getMailConfigStatus } from './services/mailService.js'
 
 const app = express()
 
@@ -22,6 +23,15 @@ app.use(morgan('dev'))
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'hardware-commerce-api' })
+})
+
+app.get('/api/health/mail', (_req, res) => {
+  const mail = getMailConfigStatus()
+  res.status(mail.configured ? 200 : 503).json({
+    status: mail.configured ? 'ok' : 'not_configured',
+    service: 'hardware-commerce-mail',
+    mail,
+  })
 })
 
 app.use('/api/auth', authRoutes)

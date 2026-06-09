@@ -21,20 +21,53 @@ function requireMailConfig() {
 
   if (missing.length > 0) {
     const error = new Error(`Email is not configured. Missing: ${missing.join(', ')}`)
-    error.statusCode = 500
+    error.statusCode = 503
+    error.code = 'MAIL_CONFIG_MISSING'
+    error.publicMessage = `Email service is not configured. Missing: ${missing.join(', ')}`
     throw error
+  }
+}
+
+export function getMailConfigStatus() {
+  const missing = []
+  if (!env.smtpHost) missing.push('SMTP_HOST')
+  if (!env.smtpUser) missing.push('SMTP_USER')
+  if (!env.smtpPass) missing.push('SMTP_PASS')
+
+  return {
+    configured: missing.length === 0,
+    missing,
+    host: env.smtpHost || null,
+    port: env.smtpPort,
+    userConfigured: Boolean(env.smtpUser),
+    fromConfigured: Boolean(env.mailFrom),
   }
 }
 
 export async function sendMail({ to, subject, html }) {
   requireMailConfig()
 
-  return createTransporter().sendMail({
-    from: env.mailFrom,
-    to,
-    subject,
-    html,
-  })
+  try {
+    return await createTransporter().sendMail({
+      from: env.mailFrom,
+      to,
+      subject,
+      html,
+    })
+  } catch (error) {
+    console.error('Email send failed:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      message: error.message,
+    })
+
+    const mailError = new Error('Email service could not send the message. Check SMTP credentials on Render.')
+    mailError.statusCode = 502
+    mailError.code = 'MAIL_SEND_FAILED'
+    mailError.publicMessage = mailError.message
+    throw mailError
+  }
 }
 
 export async function sendOtpEmail(email, code, purpose = 'verification') {

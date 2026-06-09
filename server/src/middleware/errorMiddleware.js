@@ -6,8 +6,13 @@ export function notFound(req, _res, next) {
 
 export function errorHandler(error, _req, res, _next) {
   const statusCode = error.statusCode || 500
+  const message = process.env.NODE_ENV === 'production' && statusCode >= 500
+    ? error.publicMessage || 'Server error'
+    : error.message || 'Server error'
+
   res.status(statusCode).json({
-    message: error.message || 'Server error',
+    message,
+    code: error.code,
     stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
   })
 }
