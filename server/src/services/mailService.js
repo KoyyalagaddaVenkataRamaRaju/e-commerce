@@ -17,6 +17,45 @@ function createTransporter() {
   })
 }
 
+function emailAddress(value) {
+  return value?.match(/<([^>]+)>/)?.[1]?.trim().toLowerCase() || value?.trim().toLowerCase()
+}
+
+function maskEmail(value) {
+  const email = emailAddress(value)
+  if (!email) return null
+
+  const [name, domain] = email.split('@')
+  if (!domain) return email
+  return `${name.slice(0, 2)}***@${domain}`
+}
+
+function getSmtpFailureMessage(error) {
+  const response = error.response || error.message || ''
+
+  if (error.code === 'EAUTH' || response.includes('535')) {
+    return 'Gmail rejected the SMTP login. Regenerate the Gmail app password, enter it without spaces or quotes, and confirm 2-Step Verification is enabled.'
+  }
+
+  if (response.includes('Username and Password not accepted')) {
+    return 'Gmail says the username or app password is not accepted.'
+  }
+
+  if (response.includes('Invalid login')) {
+    return 'The SMTP provider rejected the login credentials.'
+  }
+
+  if (error.code === 'EENVELOPE' || response.includes('From')) {
+    return 'The sender address was rejected. For Gmail, MAIL_FROM must use the same Gmail address as SMTP_USER or a verified Gmail alias.'
+  }
+
+  if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
+    return 'The SMTP connection timed out from Render. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, and SMTP_REQUIRE_TLS.'
+  }
+
+  return 'SMTP rejected the request. Check Render logs for the provider response.'
+}
+
 function requireMailConfig() {
   const missing = []
   if (!env.smtpHost) missing.push('SMTP_HOST or EMAIL_HOST')
@@ -45,7 +84,11 @@ export function getMailConfigStatus() {
     port: env.smtpPort,
     secure: env.smtpSecure,
     requireTLS: env.smtpRequireTls,
+    user: maskEmail(env.smtpUser),
+    from: maskEmail(env.mailFrom),
+    fromMatchesUser: emailAddress(env.mailFrom) === emailAddress(env.smtpUser),
     userConfigured: Boolean(env.smtpUser),
+    passConfigured: Boolean(env.smtpPass),
     fromConfigured: Boolean(env.mailFrom),
   }
 }
@@ -64,10 +107,16 @@ export async function verifyMailConnection() {
       message: error.message,
     })
 
-    const mailError = new Error('Email service login failed. Check SMTP host, port, user, and app password on Render.')
+    const hint = getSmtpFailureMessage(error)
+    const mailError = new Error(`Email service login failed. ${hint}`)
     mailError.statusCode = 502
     mailError.code = 'MAIL_VERIFY_FAILED'
     mailError.publicMessage = mailError.message
+    mailError.details = {
+      smtpCode: error.code,
+      smtpCommand: error.command,
+      hint,
+    }
     throw mailError
   }
 }
@@ -91,10 +140,16 @@ export async function sendMail({ to, subject, html }) {
       message: error.message,
     })
 
-    const mailError = new Error('Email service could not send the message. Check SMTP credentials on Render.')
+    const hint = getSmtpFailureMessage(error)
+    const mailError = new Error(`Email service could not send the message. ${hint}`)
     mailError.statusCode = 502
     mailError.code = 'MAIL_SEND_FAILED'
     mailError.publicMessage = mailError.message
+    mailError.details = {
+      smtpCode: error.code,
+      smtpCommand: error.command,
+      hint,
+    }
     throw mailError
   }
 }

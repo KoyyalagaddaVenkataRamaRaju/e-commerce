@@ -13,6 +13,7 @@ export function errorHandler(error, _req, res, _next) {
   res.status(statusCode).json({
     message,
     code: error.code,
+    details: error.details,
     stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
   })
 }
