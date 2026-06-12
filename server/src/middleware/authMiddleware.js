@@ -1,7 +1,6 @@
-import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
-import { env } from '../config/env.js'
+import { verifyToken } from '../utils/token.js'
 
 export const protect = asyncHandler(async (req, _res, next) => {
   const header = req.headers.authorization || ''
@@ -13,7 +12,7 @@ export const protect = asyncHandler(async (req, _res, next) => {
     throw error
   }
 
-  const decoded = jwt.verify(token, env.jwtSecret)
+  const decoded = verifyToken(token)
   req.user = await User.findById(decoded.id).select('-password')
   next()
 })

@@ -5,19 +5,23 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: env.smtpHost,
     port: env.smtpPort,
-    secure: env.smtpPort === 465,
+    secure: env.smtpSecure,
+    requireTLS: env.smtpRequireTls,
     auth: {
       user: env.smtpUser,
       pass: env.smtpPass,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   })
 }
 
 function requireMailConfig() {
   const missing = []
-  if (!env.smtpHost) missing.push('SMTP_HOST')
-  if (!env.smtpUser) missing.push('SMTP_USER')
-  if (!env.smtpPass) missing.push('SMTP_PASS')
+  if (!env.smtpHost) missing.push('SMTP_HOST or EMAIL_HOST')
+  if (!env.smtpUser) missing.push('SMTP_USER or EMAIL_USER')
+  if (!env.smtpPass) missing.push('SMTP_PASS or EMAIL_PASS')
 
   if (missing.length > 0) {
     const error = new Error(`Email is not configured. Missing: ${missing.join(', ')}`)
@@ -30,15 +34,17 @@ function requireMailConfig() {
 
 export function getMailConfigStatus() {
   const missing = []
-  if (!env.smtpHost) missing.push('SMTP_HOST')
-  if (!env.smtpUser) missing.push('SMTP_USER')
-  if (!env.smtpPass) missing.push('SMTP_PASS')
+  if (!env.smtpHost) missing.push('SMTP_HOST or EMAIL_HOST')
+  if (!env.smtpUser) missing.push('SMTP_USER or EMAIL_USER')
+  if (!env.smtpPass) missing.push('SMTP_PASS or EMAIL_PASS')
 
   return {
     configured: missing.length === 0,
     missing,
     host: env.smtpHost || null,
     port: env.smtpPort,
+    secure: env.smtpSecure,
+    requireTLS: env.smtpRequireTls,
     userConfigured: Boolean(env.smtpUser),
     fromConfigured: Boolean(env.mailFrom),
   }
@@ -74,6 +80,7 @@ export async function sendMail({ to, subject, html }) {
       from: env.mailFrom,
       to,
       subject,
+      text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
       html,
     })
   } catch (error) {

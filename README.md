@@ -39,7 +39,9 @@ copy .env.example .env
 npm run dev
 ```
 
-Update `server/.env` with MongoDB, Razorpay, SMTP, and Twilio credentials.
+Update `server/.env` with MongoDB, `JWT_SECRET`, Razorpay, and SMTP credentials. On deployment platforms, set these in the service environment, not in a committed file. Use a long random value for `JWT_SECRET`. The mail service supports either `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` or the common aliases `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`.
+
+For Gmail, use an app password, keep `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`, and set `MAIL_FROM` to the same Gmail account or a verified alias. Check `/api/health/mail/verify` after deploying to confirm SMTP login.
 
 API modules:
 
