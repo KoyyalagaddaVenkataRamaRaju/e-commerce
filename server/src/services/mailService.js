@@ -1,12 +1,12 @@
 import nodemailer from 'nodemailer'
 import { env } from '../config/env.js'
 
-function createTransporter() {
+function createTransporter(options = {}) {
   return nodemailer.createTransport({
     host: env.smtpHost,
-    port: env.smtpPort,
-    secure: env.smtpSecure,
-    requireTLS: env.smtpRequireTls,
+    port: options.port ?? env.smtpPort,
+    secure: options.secure ?? env.smtpSecure,
+    requireTLS: options.requireTLS ?? env.smtpRequireTls,
     auth: {
       user: env.smtpUser,
       pass: env.smtpPass,
@@ -15,6 +15,19 @@ function createTransporter() {
     greetingTimeout: 10000,
     socketTimeout: 15000,
   })
+}
+
+function isGmailSmtp() {
+  return env.smtpHost?.toLowerCase() === 'smtp.gmail.com'
+}
+
+function isConnectionTimeout(error) {
+  return error.code === 'ETIMEDOUT' || error.code === 'ESOCKET'
+}
+
+function gmailSslFallback() {
+  if (!isGmailSmtp() || env.smtpPort === 465) return null
+  return { port: 465, secure: true, requireTLS: false }
 }
 
 function emailAddress(value) {
@@ -50,7 +63,7 @@ function getSmtpFailureMessage(error) {
   }
 
   if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKET') {
-    return 'The SMTP connection timed out from Render. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, and SMTP_REQUIRE_TLS.'
+    return 'The SMTP connection timed out from Render. For Gmail on Render, use SMTP_PORT=465, SMTP_SECURE=true, and SMTP_REQUIRE_TLS=false.'
   }
 
   return 'SMTP rejected the request. Check Render logs for the provider response.'
@@ -98,8 +111,23 @@ export async function verifyMailConnection() {
 
   try {
     await createTransporter().verify()
-    return { ok: true }
+    return { ok: true, transport: { port: env.smtpPort, secure: env.smtpSecure, requireTLS: env.smtpRequireTls } }
   } catch (error) {
+    const fallback = isConnectionTimeout(error) ? gmailSslFallback() : null
+    if (fallback) {
+      try {
+        await createTransporter(fallback).verify()
+        return { ok: true, transport: fallback, fallback: true }
+      } catch (fallbackError) {
+        console.error('Email verify fallback failed:', {
+          code: fallbackError.code,
+          command: fallbackError.command,
+          response: fallbackError.response,
+          message: fallbackError.message,
+        })
+      }
+    }
+
     console.error('Email verify failed:', {
       code: error.code,
       command: error.command,
@@ -123,16 +151,31 @@ export async function verifyMailConnection() {
 
 export async function sendMail({ to, subject, html }) {
   requireMailConfig()
+  const message = {
+    from: env.mailFrom,
+    to,
+    subject,
+    text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+    html,
+  }
 
   try {
-    return await createTransporter().sendMail({
-      from: env.mailFrom,
-      to,
-      subject,
-      text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
-      html,
-    })
+    return await createTransporter().sendMail(message)
   } catch (error) {
+    const fallback = isConnectionTimeout(error) ? gmailSslFallback() : null
+    if (fallback) {
+      try {
+        return await createTransporter(fallback).sendMail(message)
+      } catch (fallbackError) {
+        console.error('Email send fallback failed:', {
+          code: fallbackError.code,
+          command: fallbackError.command,
+          response: fallbackError.response,
+          message: fallbackError.message,
+        })
+      }
+    }
+
     console.error('Email send failed:', {
       code: error.code,
       command: error.command,
