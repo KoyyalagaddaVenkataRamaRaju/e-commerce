@@ -11,6 +11,10 @@ const registerInitial = {
   emailCode: '',
 }
 
+function errorMessage(error, fallback) {
+  return error.response?.data?.details?.hint || error.response?.data?.message || fallback
+}
+
 export default function Login() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -58,7 +62,7 @@ export default function Login() {
       const user = await login(loginForm)
       navigate(user.role === 'admin' ? '/admin/dashboard' : from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Check your email and password.')
+      setError(errorMessage(err, 'Login failed. Check your email and password.'))
     } finally {
       setLoading(false)
     }
@@ -83,7 +87,7 @@ export default function Login() {
       setRegisterOtpSent(true)
       setMessage('OTP sent. Check your email, then enter the code.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not send OTP.')
+      setError(errorMessage(err, 'Could not send OTP.'))
     } finally {
       setLoading(false)
     }
@@ -103,7 +107,7 @@ export default function Login() {
       })
       navigate(user.role === 'admin' ? '/admin/dashboard' : from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed.')
+      setError(errorMessage(err, 'Registration failed.'))
     } finally {
       setLoading(false)
     }
@@ -119,7 +123,7 @@ export default function Login() {
       setForgotOtpSent(true)
       setMessage('If the email exists, a password reset OTP has been sent.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not send password reset OTP.')
+      setError(errorMessage(err, 'Could not send password reset OTP.'))
     } finally {
       setLoading(false)
     }
@@ -136,7 +140,7 @@ export default function Login() {
       setMode('login')
       setMessage('Password updated. Sign in with your new password.')
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not reset password.')
+      setError(errorMessage(err, 'Could not reset password.'))
     } finally {
       setLoading(false)
     }
